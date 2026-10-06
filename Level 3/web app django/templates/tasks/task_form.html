@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | TaskFlow{% endblock %}
+{% block header_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <a href="{% url 'tasks:dashboard' %}" style="font-size: 0.88rem; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+        &larr; Back to Command Center
+    </a>
+</div>
+
+<div class="auth-wrapper" style="min-height: auto; padding: 1rem 0;">
+    <div class="auth-card auth-card-wide" style="width: 100%; max-width: 680px;">
+        <div style="margin-bottom: 1.75rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem;">
+            <h1 style="font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em;">{{ title }}</h1>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">
+                Specify milestone requirements, project assignment, and priority delivery schedule.
+            </p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label class="form-label" for="id_title">Task Title *</label>
+                {{ form.title }}
+                {% if form.title.errors %}<div class="errorlist">{{ form.title.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="id_description">Description & Acceptance Criteria</label>
+                {{ form.description }}
+                {% if form.description.errors %}<div class="errorlist">{{ form.description.errors }}</div>{% endif %}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="id_project">Associated Initiative / Project</label>
+                    {{ form.project }}
+                    {% if form.project.errors %}<div class="errorlist">{{ form.project.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="id_assigned_to">Assignee</label>
+                    {{ form.assigned_to }}
+                    {% if form.assigned_to.errors %}<div class="errorlist">{{ form.assigned_to.errors }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="id_status">Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}<div class="errorlist">{{ form.status.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="id_priority">Priority</label>
+                    {{ form.priority }}
+                    {% if form.priority.errors %}<div class="errorlist">{{ form.priority.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="id_due_date">Target Due Date</label>
+                    {{ form.due_date }}
+                    {% if form.due_date.errors %}<div class="errorlist">{{ form.due_date.errors }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--border-subtle);">
+                <a href="{% url 'tasks:dashboard' %}" class="btn btn-secondary">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.75rem;">
+                    Save Task
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

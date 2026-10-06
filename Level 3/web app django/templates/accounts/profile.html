@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile & Security | TaskFlow{% endblock %}
+{% block header_title %}Profile & Security Settings{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
+    <!-- Left Column: User Profile Summary Card -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div class="card" style="text-align: center; padding: 2rem 1.5rem;">
+            <div class="avatar avatar-lg" style="margin: 0 auto 1.25rem auto; background-color: var(--accent-{{ user.avatar_color|default:'indigo' }}, #6366f1); box-shadow: var(--shadow-md);">
+                {{ user.initials }}
+            </div>
+            <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">
+                {{ user.get_full_name|default:user.username }}
+            </h2>
+            <div style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.75rem; font-family: var(--font-mono);">
+                @{{ user.username }}
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <span class="badge {{ user.role_badge_class }}">
+                    {{ user.get_role_display }}
+                </span>
+            </div>
+
+            {% if user.title %}
+            <div style="font-size: 0.88rem; color: var(--text-main); font-weight: 600; margin-bottom: 6px;">
+                {{ user.title }}
+            </div>
+            {% endif %}
+
+            {% if user.bio %}
+            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; border-top: 1px solid var(--border-subtle); padding-top: 1rem; margin-top: 1rem; text-align: left;">
+                "{{ user.bio }}"
+            </p>
+            {% endif %}
+
+            <div style="border-top: 1px solid var(--border-subtle); margin-top: 1.5rem; padding-top: 1rem; font-size: 0.78rem; color: var(--text-muted);">
+                Member since {{ user.date_joined|date:"F d, Y" }}
+            </div>
+        </div>
+
+        <!-- Task Deliverables Metrics Card -->
+        <div class="card">
+            <h3 class="card-title" style="font-size: 0.98rem; margin-bottom: 1rem;">
+                <span>📊</span> Personal Metrics
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.88rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary);">Assigned Tasks</span>
+                    <strong style="color: var(--text-main);">{{ assigned_tasks_count }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary);">Completed Tasks</span>
+                    <strong style="color: #34d399;">{{ completed_tasks_count }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary);">Authored Tasks</span>
+                    <strong style="color: #818cf8;">{{ created_tasks_count }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Profile Information & Security Forms -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+        <!-- Edit Profile Details Form -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title" style="font-size: 1.1rem;">
+                    <span>✏️</span> Profile Information
+                </h3>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="id_first_name">First Name</label>
+                        {{ profile_form.first_name }}
+                        {% if profile_form.first_name.errors %}<div class="errorlist">{{ profile_form.first_name.errors }}</div>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="id_last_name">Last Name</label>
+                        {{ profile_form.last_name }}
+                        {% if profile_form.last_name.errors %}<div class="errorlist">{{ profile_form.last_name.errors }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="id_email">Email Address</label>
+                        {{ profile_form.email }}
+                        {% if profile_form.email.errors %}<div class="errorlist">{{ profile_form.email.errors }}</div>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="id_avatar_color">Avatar Color Accent</label>
+                        {{ profile_form.avatar_color }}
+                        {% if profile_form.avatar_color.errors %}<div class="errorlist">{{ profile_form.avatar_color.errors }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="id_title">Professional Role / Title</label>
+                    {{ profile_form.title }}
+                    {% if profile_form.title.errors %}<div class="errorlist">{{ profile_form.title.errors }}</div>{% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="id_bio">Bio & Responsibilities</label>
+                    {{ profile_form.bio }}
+                    {% if profile_form.bio.errors %}<div class="errorlist">{{ profile_form.bio.errors }}</div>{% endif %}
+                </div>
+
+                <button type="submit" name="update_profile" class="btn btn-primary" style="padding: 0.75rem 1.6rem;">
+                    Save Profile Changes
+                </button>
+            </form>
+        </div>
+
+        <!-- Security / Password Change Form -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title" style="font-size: 1.1rem;">
+                    <span>🔒</span> Security & Password Change
+                </h3>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="form-group">
+                    <label class="form-label" for="id_old_password">Current Password</label>
+                    {{ password_form.old_password }}
+                    {% if password_form.old_password.errors %}<div class="errorlist">{{ password_form.old_password.errors }}</div>{% endif %}
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="id_new_password1">New Password</label>
+                        {{ password_form.new_password1 }}
+                        {% if password_form.new_password1.errors %}<div class="errorlist">{{ password_form.new_password1.errors }}</div>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="id_new_password2">Confirm New Password</label>
+                        {{ password_form.new_password2 }}
+                        {% if password_form.new_password2.errors %}<div class="errorlist">{{ password_form.new_password2.errors }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <button type="submit" name="change_password" class="btn btn-secondary" style="padding: 0.75rem 1.6rem;">
+                    Update Security Password
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

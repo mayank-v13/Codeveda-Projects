@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Mailbox Simulator & Token Inspector | TaskFlow{% endblock %}
+{% block header_title %}📬 Simulated Mailbox (Local Email Testing){% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em;">Simulated Developer Mailbox</h1>
+        <p style="color: var(--text-secondary); font-size: 0.92rem; max-width: 800px; line-height: 1.5; margin-top: 4px;">
+            All outgoing system messages (including tokenized Password Reset requests) are intercepted and saved to local storage by Django's file-based email backend. Test password recovery flows instantly without requiring real SMTP credentials.
+        </p>
+    </div>
+
+    <a href="{% url 'accounts:password_reset' %}" class="btn btn-primary btn-sm">
+        🔑 Trigger Test Password Reset
+    </a>
+</div>
+
+{% if emails %}
+<div style="display: flex; flex-direction: column; gap: 1.5rem;">
+    {% for email in emails %}
+    <div class="card" style="border-left: 4px solid var(--primary); padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+            <div>
+                <span class="badge badge-manager" style="margin-bottom: 6px; font-size: 0.72rem;">Intercepted Email Message</span>
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); margin-top: 2px;">{{ email.subject }}</h3>
+            </div>
+            <div style="font-size: 0.82rem; color: var(--text-muted); font-family: var(--font-mono);">
+                ⏱️ {{ email.date|default:"Recently dispatched" }}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; background: rgba(0, 0, 0, 0.3); padding: 0.85rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1.25rem; font-size: 0.88rem; border: 1px solid var(--border-subtle);">
+            <div><strong style="color: var(--text-secondary);">Recipient (To):</strong> <span style="color: #a5b4fc;">{{ email.to }}</span></div>
+            <div><strong style="color: var(--text-secondary);">File ID:</strong> <span style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.8rem;">{{ email.filename }}</span></div>
+        </div>
+
+        <!-- Direct 1-Click Password Reset Action -->
+        {% if email.reset_link %}
+        <div style="background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <div style="font-weight: 700; color: #a5b4fc; font-size: 0.95rem; margin-bottom: 2px;">
+                        ✨ Verified One-Time Password Reset Link Detected!
+                    </div>
+                    <div style="font-size: 0.82rem; color: var(--text-secondary); word-break: break-all; font-family: var(--font-mono);">
+                        {{ email.reset_link }}
+                    </div>
+                </div>
+                <a href="{{ email.reset_link }}" class="btn btn-primary" style="padding: 0.65rem 1.4rem; font-size: 0.9rem; text-decoration: none; white-space: nowrap; box-shadow: var(--shadow-glow);">
+                    ⚡ Open Reset Link & Set Password &rarr;
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Raw Content Viewer (Collapsible) -->
+        <details style="cursor: pointer;">
+            <summary style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; outline: none; margin-bottom: 8px;">
+                Inspect Raw Email Payload
+            </summary>
+            <div style="background: rgba(10, 15, 29, 0.95); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1.25rem; font-family: var(--font-mono); font-size: 0.82rem; color: #cbd5e1; white-space: pre-wrap; line-height: 1.6; word-break: break-all; margin-top: 8px;">
+{{ email.raw_content }}
+            </div>
+        </details>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align: center; padding: 4rem 2rem;">
+    <div style="font-size: 3.5rem; margin-bottom: 1rem;">📭</div>
+    <h3 style="font-size: 1.35rem; font-weight: 700; margin-bottom: 0.5rem;">Mailbox is Currently Empty</h3>
+    <p style="color: var(--text-secondary); max-width: 520px; margin: 0 auto 1.75rem auto; font-size: 0.92rem; line-height: 1.6;">
+        No emails have been captured in local storage yet. Trigger a password reset request to see the security email, tokenized URL, and raw payload appear here in real-time.
+    </p>
+    <a href="{% url 'accounts:password_reset' %}" class="btn btn-primary">
+        🔑 Test Password Reset Flow Now
+    </a>
+</div>
+{% endif %}
+{% endblock %}

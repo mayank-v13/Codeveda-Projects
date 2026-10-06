@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}Team & RBAC Governance | TaskFlow Admin{% endblock %}
+{% block header_title %}Team Roster & Role-Based Access Control{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em;">Team & RBAC Governance</h1>
+        <p style="color: var(--text-secondary); font-size: 0.92rem;">
+            Administratively manage user permissions, promote or demote roles, and control workspace access.
+        </p>
+    </div>
+</div>
+
+<!-- RBAC Metrics Strip -->
+<div class="stats-grid" style="margin-bottom: 2rem;">
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-purple">👥</div>
+        <div>
+            <div class="stat-value">{{ total_users }}</div>
+            <div class="stat-label">Total Accounts</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-rose">👑</div>
+        <div>
+            <div class="stat-value">{{ total_admins }}</div>
+            <div class="stat-label">Administrators</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-cyan">💼</div>
+        <div>
+            <div class="stat-value">{{ total_managers }}</div>
+            <div class="stat-label">Project Managers</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-emerald">💻</div>
+        <div>
+            <div class="stat-value">{{ total_members }}</div>
+            <div class="stat-label">Team Members</div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter Bar -->
+<div class="card" style="margin-bottom: 1.75rem; padding: 1rem 1.25rem;">
+    <form method="get" action="{% url 'accounts:admin_users' %}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <!-- Search Input -->
+        <div style="flex: 2; min-width: 220px;">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="Search by name, username, or email..." class="form-input" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;">
+        </div>
+
+        <!-- Role Filter Dropdown -->
+        <div style="flex: 1; min-width: 160px;">
+            <select name="role" class="form-select" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;" onchange="this.form.submit()">
+                <option value="">All Roles ({{ total_users }})</option>
+                {% for r_code, r_name in roles %}
+                <option value="{{ r_code }}" {% if role_filter == r_code %}selected{% endif %}>{{ r_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.6rem 1rem;">
+            🔍 Filter
+        </button>
+        {% if search_query or role_filter %}
+        <a href="{% url 'accounts:admin_users' %}" class="btn btn-secondary btn-sm" style="color: var(--text-muted);">
+            Reset
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Users Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div style="overflow-x: auto;">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email Address</th>
+                    <th>Current Role</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th style="text-align: right;">Role Elevation & Access</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users_list %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="avatar" style="width: 32px; height: 32px; font-size: 0.75rem; background-color: var(--accent-{{ u.avatar_color|default:'indigo' }}, #6366f1);">
+                                {{ u.initials }}
+                            </div>
+                            <div>
+                                <div style="font-weight: 700; color: var(--text-main);">
+                                    {{ u.get_full_name|default:u.username }}
+                                    {% if u == user %}
+                                    <span style="font-size: 0.7rem; color: #a5b4fc; font-weight: 500;">(You)</span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">
+                                    @{{ u.username }} &bull; {{ u.title|default:"Contributor" }}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.88rem; color: var(--text-secondary);">
+                            {{ u.email }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge {{ u.role_badge_class }}">
+                            {{ u.get_role_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; color: #34d399; font-weight: 600;">
+                            ● Active
+                        </span>
+                        {% else %}
+                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; color: #f43f5e; font-weight: 600;">
+                            ○ Deactivated
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 0.82rem; color: var(--text-muted);">
+                            {{ u.date_joined|date:"M d, Y" }}
+                        </span>
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end;">
+                            <!-- Update Role Form -->
+                            <form method="post" action="{% url 'accounts:admin_users' %}" style="display: flex; gap: 6px; align-items: center;">
+                                {% csrf_token %}
+                                <input type="hidden" name="update_user_role" value="1">
+                                <input type="hidden" name="target_user_id" value="{{ u.pk }}">
+                                <select name="new_role" class="form-select" style="padding: 3px 8px; font-size: 0.78rem; width: auto;" onchange="this.form.submit()">
+                                    {% for r_code, r_name in roles %}
+                                    <option value="{{ r_code }}" {% if u.role == r_code %}selected{% endif %}>
+                                        {{ r_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+
+                            <!-- Toggle Active Status Form -->
+                            {% if u != user %}
+                            <form method="post" action="{% url 'accounts:admin_users' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="toggle_user_active" value="1">
+                                <input type="hidden" name="target_user_id" value="{{ u.pk }}">
+                                <button type="submit" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 0.75rem;" title="{% if u.is_active %}Deactivate account{% else %}Activate account{% endif %}">
+                                    {% if u.is_active %}Disable{% else %}Enable{% endif %}
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        No user accounts match the current filter criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TaskFlow | Modern Project & Task Management{% endblock %}</title>
+    <meta name="description"
+        content="{% block meta_description %}TaskFlow is a state-of-the-art collaborative task management platform with role-based access control, interactive Kanban boards, and real-time audit logging.{% endblock %}">
+
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- TaskFlow Core CSS -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+    <!-- Toast Notification Container -->
+    {% if messages %}
+    <div class="toast-container" id="toast-container">
+        {% for message in messages %}
+        <div class="toast toast-{{ message.tags|default:'info' }}">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span>
+                    {% if 'success' in message.tags %}✨{% elif 'error' in message.tags %}⚠️{% elif 'warning' in
+                    message.tags %}⚡{% else %}ℹ️{% endif %}
+                </span>
+                <span>{{ message }}</span>
+            </div>
+            <button onclick="this.closest('.toast').remove()"
+                style="background:none; border:none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; line-height: 1;">&times;</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if user.is_authenticated %}
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <a href="{% url 'tasks:dashboard' %}"
+                    style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
+                    <div class="brand-icon">⚡</div>
+                    <div>
+                        <div class="brand-name">TaskFlow</div>
+                    </div>
+                </a>
+                <span class="brand-badge">PRO</span>
+            </div>
+
+            <ul class="nav-menu">
+                <li class="nav-section-title">Workspace</li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <a href="{% url 'tasks:dashboard' %}">
+                        <span class="nav-icon">📊</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if 'project' in request.resolver_match.url_name %}active{% endif %}">
+                    <a href="{% url 'tasks:project_list' %}">
+                        <span class="nav-icon">📁</span>
+                        <span>Projects</span>
+                    </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'activity_log' %}active{% endif %}">
+                    <a href="{% url 'tasks:activity_log' %}">
+                        <span class="nav-icon">📜</span>
+                        <span>Activity Audit</span>
+                    </a>
+                </li>
+
+                {% if is_admin or user.is_admin_role %}
+                <li class="nav-section-title">Administration</li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'admin_users' %}active{% endif %}">
+                    <a href="{% url 'accounts:admin_users' %}">
+                        <span class="nav-icon">👥</span>
+                        <span>Team & RBAC</span>
+                        <span class="badge badge-admin" style="margin-left: auto; font-size: 0.65rem;">Admin</span>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if is_admin or user.is_admin_role %}
+                <li class="nav-section-title">Development Tools</li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'dev_email_inbox' %}active{% endif %}">
+                    <a href="{% url 'accounts:dev_email_inbox' %}">
+                        <span class="nav-icon">📬</span>
+                        <span>Mailbox Simulator</span>
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="nav-section-title">Account</li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+                    <a href="{% url 'accounts:profile' %}">
+                        <span class="nav-icon">⚙️</span>
+                        <span>Profile & Settings</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="user-mini-card">
+                    <div class="avatar"
+                        style="background-color: var(--accent-{{ user.avatar_color|default:'indigo' }}, #6366f1);">
+                        {{ user.initials }}
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
+                        <div class="user-role-label">
+                            <span class="badge {{ user.role_badge_class }}">
+                                {{ user.get_role_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <a href="{% url 'accounts:logout' %}" title="Sign out"
+                        style="color: var(--text-muted); font-size: 1.15rem; padding: 4px; transition: color 0.2s;"
+                        onmouseover="this.style.color='#f43f5e'" onmouseout="this.style.color='var(--text-muted)'">
+                        🚪
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <div class="main-content">
+            <!-- Topbar Header -->
+            <header class="topbar">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <button id="sidebar-toggle" class="btn btn-secondary btn-icon" style="display: none;"
+                        aria-label="Toggle navigation">
+                        ☰
+                    </button>
+                    <div
+                        style="font-weight: 700; font-size: 1.18rem; color: var(--text-main); letter-spacing: -0.01em;">
+                        {% block header_title %}Overview{% endblock %}
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <a href="{% url 'tasks:task_create' %}" class="btn btn-primary btn-sm">
+                        <span>⚡ + New Task</span>
+                    </a>
+                    {% if is_manager or user.is_manager_role %}
+                    <a href="{% url 'tasks:project_create' %}" class="btn btn-secondary btn-sm">
+                        <span>📁 + New Project</span>
+                    </a>
+                    {% endif %}
+                    {% if is_admin or user.is_admin_role %}
+                    <a href="{% url 'accounts:dev_email_inbox' %}" class="btn btn-secondary btn-sm"
+                        title="View Captured Emails & Reset Links">
+                        <span>📬 Outbox</span>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'accounts:profile' %}" title="View profile settings"
+                        style="display: flex; align-items: center;">
+                        <div class="avatar"
+                            style="width: 36px; height: 36px; font-size: 0.8rem; background-color: var(--accent-{{ user.avatar_color|default:'indigo' }}, #6366f1); box-shadow: var(--shadow-sm);">
+                            {{ user.initials }}
+                        </div>
+                    </a>
+                </div>
+            </header>
+
+            <!-- Dynamic Page Content -->
+            <main class="page-body">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    {% else %}
+    <!-- Public Header & Guest Container -->
+    <div style="min-height: 100vh; display: flex; flex-direction: column;">
+        <nav
+            style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 2.5rem; background: rgba(13, 18, 31, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0; z-index: 100;">
+            <a href="{% url 'tasks:landing' %}"
+                style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
+                <div class="brand-icon" style="width: 38px; height: 38px; font-size: 1.25rem;">⚡</div>
+                <span
+                    style="font-weight: 800; font-size: 1.35rem; color: var(--text-main); letter-spacing: -0.02em;">TaskFlow</span>
+                <span class="brand-badge">PRO</span>
+            </a>
+
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <a href="{% url 'accounts:login' %}" class="btn btn-secondary btn-sm">
+                    Sign In
+                </a>
+                <a href="{% url 'accounts:register' %}" class="btn btn-primary btn-sm">
+                    Get Started Free
+                </a>
+            </div>
+        </nav>
+
+        <main style="flex: 1;">
+            {% block auth_content %}{% endblock %}
+        </main>
+
+        <footer
+            style="padding: 2rem 2.5rem; border-top: 1px solid var(--border-subtle); text-align: center; color: var(--text-muted); font-size: 0.85rem; background: var(--bg-sidebar);">
+            <div>TaskFlow &bull; Enterprise-Grade Collaborative Sprint & Task Management</div>
+            <div style="margin-top: 6px; font-size: 0.8rem; color: var(--text-secondary);">
+                Built with Django 6.1, Secure Role-Based Access Control & Real-time Audit Logging
+            </div>
+        </footer>
+    </div>
+    {% endif %}
+
+    <script src="{% static 'js/app.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

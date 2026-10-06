@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ project.name }} | Project Workspace | TaskFlow{% endblock %}
+{% block header_title %}Project: {{ project.name }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <a href="{% url 'tasks:project_list' %}" style="font-size: 0.88rem; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+        &larr; Back to Projects Directory
+    </a>
+</div>
+
+<!-- Project Overview Card -->
+<div class="card" style="margin-bottom: 2rem; border-top: 4px solid var(--accent-{{ project.color|default:'indigo' }}, #6366f1);">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
+        <div>
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                <span class="badge badge-{{ project.status|lower }}">{{ project.get_status_display }}</span>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">
+                    Created by {{ project.created_by.get_full_name|default:project.created_by.username }} &bull; {{ project.created_at|date:"M d, Y" }}
+                </span>
+            </div>
+            <h1 style="font-size: 1.85rem; font-weight: 800; letter-spacing: -0.02em;">{{ project.name }}</h1>
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <a href="{% url 'tasks:task_create' %}?project={{ project.slug }}" class="btn btn-primary btn-sm">
+                <span>⚡ + Add Task to Project</span>
+            </a>
+            {% if is_manager or user.is_manager_role or project.created_by == user %}
+            <a href="{% url 'tasks:project_update' project.slug %}" class="btn btn-secondary btn-sm">
+                <span>✏️ Edit Project</span>
+            </a>
+            <a href="{% url 'tasks:project_delete' project.slug %}" class="btn btn-danger btn-sm">
+                <span>🗑️ Delete</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+        {{ project.description|default:"No detailed project description recorded." }}
+    </p>
+
+    <!-- Progress Meter -->
+    <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.88rem; color: var(--text-main); font-weight: 600; margin-bottom: 6px;">
+            <span>Initiative Completion Rate</span>
+            <span>{{ project.progress_percentage }}% ({{ project.completed_tasks }} of {{ project.total_tasks }} tasks complete)</span>
+        </div>
+        <div style="width: 100%; height: 10px; background: rgba(255, 255, 255, 0.08); border-radius: 999px; overflow: hidden;">
+            <div style="width: {{ project.progress_percentage }}%; height: 100%; background: linear-gradient(90deg, #6366f1 0%, #34d399 100%); border-radius: 999px; transition: width 0.4s ease;"></div>
+        </div>
+    </div>
+
+    <!-- Assigned Project Members Roster -->
+    <div style="border-top: 1px solid var(--border-subtle); padding-top: 1.25rem;">
+        <h4 style="font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 0.75rem;">
+            Initiative Team Members ({{ project.members.count }})
+        </h4>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            {% for member in project.members.all %}
+            <div style="display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-subtle); padding: 6px 12px; border-radius: var(--radius-md);">
+                <div class="avatar" style="width: 26px; height: 26px; font-size: 0.7rem; background-color: var(--accent-{{ member.avatar_color|default:'indigo' }}, #6366f1);">
+                    {{ member.initials }}
+                </div>
+                <div>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">
+                        {{ member.get_full_name|default:member.username }}
+                    </div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted);">
+                        {{ member.title|default:member.get_role_display }}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <span style="color: var(--text-muted); font-size: 0.85rem;">No team members assigned to this project yet.</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Project Tasks Section -->
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title" style="font-size: 1.15rem; margin: 0;">
+            <span>📋</span> Tasks in this Project ({{ tasks.count }})
+        </h3>
+        <a href="{% url 'tasks:task_create' %}?project={{ project.slug }}" class="btn btn-primary btn-sm">
+            + New Task
+        </a>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Task Title</th>
+                    <th>Assignee</th>
+                    <th>Priority</th>
+                    <th>Due Date</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>
+                        <span class="badge {{ task.status_badge_class }}">
+                            {{ task.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'tasks:task_detail' task.pk %}" style="font-weight: 700; color: var(--text-main); text-decoration: none;">
+                            {{ task.title }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if task.assigned_to %}
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="avatar" style="width: 24px; height: 24px; font-size: 0.65rem; background-color: var(--accent-{{ task.assigned_to.avatar_color|default:'indigo' }}, #6366f1);">
+                                {{ task.assigned_to.initials }}
+                            </div>
+                            <span style="font-size: 0.85rem;">{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</span>
+                        </div>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {{ task.priority_badge_class }}">
+                            {{ task.get_priority_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">
+                            {{ task.due_date|date:"M d, Y"|default:"TBD" }}
+                        </span>
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 6px;">
+                            <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn-secondary btn-sm" title="View details">
+                                👁️
+                            </a>
+                            <a href="{% url 'tasks:task_update' task.pk %}" class="btn btn-secondary btn-sm" title="Edit task">
+                                ✏️
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 3rem 1.5rem; color: var(--text-muted);">
+                        No tasks have been added to this initiative yet.
+                        <div style="margin-top: 1rem;">
+                            <a href="{% url 'tasks:task_create' %}?project={{ project.slug }}" class="btn btn-primary btn-sm">
+                                + Create First Task
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

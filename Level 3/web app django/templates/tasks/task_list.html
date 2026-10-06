@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+
+{% block title %}Task Board & List | TaskFlow{% endblock %}
+{% block header_title %}Task Management{% endblock %}
+
+{% block content %}
+<!-- Header Bar with View Toggle & New Task Button -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.6rem; font-weight: 800;">Workspace Tasks</h1>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+            Organize, monitor, and move tasks through stages.
+        </p>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <!-- View Mode Switcher -->
+        <div style="background: rgba(255, 255, 255, 0.05); padding: 3px; border-radius: var(--radius-md); display: flex; border: 1px solid var(--border-subtle);">
+            <a href="?view=board{% if scope %}&scope={{ scope }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}" class="btn btn-sm {% if view_mode == 'board' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding: 4px 12px; font-size: 0.8rem; border: none;">
+                ▦ Board
+            </a>
+            <a href="?view=list{% if scope %}&scope={{ scope }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_project %}&project={{ selected_project }}{% endif %}" class="btn btn-sm {% if view_mode == 'list' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding: 4px 12px; font-size: 0.8rem; border: none;">
+                ☰ List
+            </a>
+        </div>
+
+        <a href="{% url 'task_create' %}" class="btn btn-primary btn-sm">
+            <span>+ Create Task</span>
+        </a>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem;">
+    <form method="get" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <input type="hidden" name="view" value="{{ view_mode }}">
+
+        <!-- Search Input -->
+        <div style="flex: 2; min-width: 220px;">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="Filter by keyword, title, tag..." class="form-control" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;">
+        </div>
+
+        <!-- Scope (All vs Mine) -->
+        <div style="flex: 1; min-width: 140px;">
+            <select name="scope" class="form-select" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;" onchange="this.form.submit()">
+                <option value="mine" {% if scope == 'mine' %}selected{% endif %}>My Tasks</option>
+                <option value="all" {% if scope == 'all' %}selected{% endif %}>All Tasks</option>
+            </select>
+        </div>
+
+        <!-- Project Filter -->
+        <div style="flex: 1.2; min-width: 160px;">
+            <select name="project" class="form-select" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;" onchange="this.form.submit()">
+                <option value="">All Projects</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if selected_project == p.id|stringformat:"s" %}selected{% endif %}>{{ p.title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Priority Filter -->
+        <div style="flex: 1; min-width: 130px;">
+            <select name="priority" class="form-select" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;" onchange="this.form.submit()">
+                <option value="">All Priorities</option>
+                <option value="LOW" {% if selected_priority == 'LOW' %}selected{% endif %}>Low</option>
+                <option value="MEDIUM" {% if selected_priority == 'MEDIUM' %}selected{% endif %}>Medium</option>
+                <option value="HIGH" {% if selected_priority == 'HIGH' %}selected{% endif %}>High</option>
+                <option value="URGENT" {% if selected_priority == 'URGENT' %}selected{% endif %}>Urgent</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.55rem 1rem;">
+            Apply
+        </button>
+
+        {% if search_query or selected_project or selected_priority or selected_status %}
+        <a href="{% url 'task_list' %}?view={{ view_mode }}" class="btn btn-secondary btn-sm" style="color: var(--text-muted);">
+            Reset
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if view_mode == 'board' %}
+<!-- KANBAN BOARD VIEW -->
+<div class="kanban-board">
+    <!-- 1. To Do Column -->
+    <div class="kanban-column">
+        <div class="kanban-column-header">
+            <div class="kanban-column-title">
+                <span style="color: #94a3b8;">○</span> To Do
+            </div>
+            <span class="kanban-count-pill">{{ todo_tasks|length }}</span>
+        </div>
+        <div class="kanban-cards-wrapper">
+            {% for task in todo_tasks %}
+            <div class="kanban-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                    <span class="badge badge-priority-{{ task.priority|lower }}">{{ task.get_priority_display }}</span>
+                    {% if task.category %}<span style="font-size: 0.72rem; color: var(--text-muted);">#{{ task.category }}</span>{% endif %}
+                </div>
+                <div class="kanban-card-title">
+                    <a href="{% url 'task_detail' task.pk %}" style="color: var(--text-main);">{{ task.title }}</a>
+                </div>
+                {% if task.project %}
+                <div class="kanban-card-project">📁 {{ task.project.title }}</div>
+                {% endif %}
+
+                <div class="kanban-card-footer">
+                    <div class="kanban-card-meta">
+                        <span style="color: {% if task.is_overdue %}#fb7185{% else %}var(--text-muted){% endif %};">
+                            📅 {{ task.due_date|date:"M d"|default:"-" }}
+                        </span>
+                    </div>
+                    {% if task.assigned_to %}
+                    <div class="avatar" style="width: 26px; height: 26px; font-size: 0.7rem; background-color: {{ task.assigned_to.profile.avatar_color|default:'#6366f1' }};" title="{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}">
+                        {{ task.assigned_to.profile.initials }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Quick transition action -->
+                <div class="quick-status-buttons">
+                    <form method="post" action="{% url 'task_status_update' task.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="IN_PROGRESS">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button type="submit" class="quick-status-btn">Start → In Progress</button>
+                    </form>
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align: center; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.85rem;">No tasks</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 2. In Progress Column -->
+    <div class="kanban-column">
+        <div class="kanban-column-header">
+            <div class="kanban-column-title">
+                <span style="color: #06b6d4;">◑</span> In Progress
+            </div>
+            <span class="kanban-count-pill">{{ in_progress_tasks|length }}</span>
+        </div>
+        <div class="kanban-cards-wrapper">
+            {% for task in in_progress_tasks %}
+            <div class="kanban-card" style="border-left: 3px solid #06b6d4;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                    <span class="badge badge-priority-{{ task.priority|lower }}">{{ task.get_priority_display }}</span>
+                    {% if task.category %}<span style="font-size: 0.72rem; color: var(--text-muted);">#{{ task.category }}</span>{% endif %}
+                </div>
+                <div class="kanban-card-title">
+                    <a href="{% url 'task_detail' task.pk %}" style="color: var(--text-main);">{{ task.title }}</a>
+                </div>
+                {% if task.project %}
+                <div class="kanban-card-project">📁 {{ task.project.title }}</div>
+                {% endif %}
+
+                <div class="kanban-card-footer">
+                    <div class="kanban-card-meta">
+                        <span style="color: {% if task.is_overdue %}#fb7185{% else %}var(--text-muted){% endif %};">
+                            📅 {{ task.due_date|date:"M d"|default:"-" }}
+                        </span>
+                    </div>
+                    {% if task.assigned_to %}
+                    <div class="avatar" style="width: 26px; height: 26px; font-size: 0.7rem; background-color: {{ task.assigned_to.profile.avatar_color|default:'#6366f1' }};" title="{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}">
+                        {{ task.assigned_to.profile.initials }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="quick-status-buttons">
+                    <form method="post" action="{% url 'task_status_update' task.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="REVIEW">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button type="submit" class="quick-status-btn">Send for Review →</button>
+                    </form>
+                    <form method="post" action="{% url 'task_status_update' task.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="DONE">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button type="submit" class="quick-status-btn" style="color: #34d399;">Complete ✓</button>
+                    </form>
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align: center; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.85rem;">No tasks</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 3. Review Column -->
+    <div class="kanban-column">
+        <div class="kanban-column-header">
+            <div class="kanban-column-title">
+                <span style="color: #f59e0b;">◕</span> In Review
+            </div>
+            <span class="kanban-count-pill">{{ review_tasks|length }}</span>
+        </div>
+        <div class="kanban-cards-wrapper">
+            {% for task in review_tasks %}
+            <div class="kanban-card" style="border-left: 3px solid #f59e0b;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                    <span class="badge badge-priority-{{ task.priority|lower }}">{{ task.get_priority_display }}</span>
+                    {% if task.category %}<span style="font-size: 0.72rem; color: var(--text-muted);">#{{ task.category }}</span>{% endif %}
+                </div>
+                <div class="kanban-card-title">
+                    <a href="{% url 'task_detail' task.pk %}" style="color: var(--text-main);">{{ task.title }}</a>
+                </div>
+                {% if task.project %}
+                <div class="kanban-card-project">📁 {{ task.project.title }}</div>
+                {% endif %}
+
+                <div class="kanban-card-footer">
+                    <div class="kanban-card-meta">
+                        <span style="color: {% if task.is_overdue %}#fb7185{% else %}var(--text-muted){% endif %};">
+                            📅 {{ task.due_date|date:"M d"|default:"-" }}
+                        </span>
+                    </div>
+                    {% if task.assigned_to %}
+                    <div class="avatar" style="width: 26px; height: 26px; font-size: 0.7rem; background-color: {{ task.assigned_to.profile.avatar_color|default:'#6366f1' }};" title="{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}">
+                        {{ task.assigned_to.profile.initials }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="quick-status-buttons">
+                    <form method="post" action="{% url 'task_status_update' task.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="DONE">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button type="submit" class="quick-status-btn" style="color: #34d399;">Approve & Complete ✓</button>
+                    </form>
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align: center; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.85rem;">No tasks</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 4. Done Column -->
+    <div class="kanban-column">
+        <div class="kanban-column-header">
+            <div class="kanban-column-title">
+                <span style="color: #10b981;">●</span> Completed
+            </div>
+            <span class="kanban-count-pill">{{ done_tasks|length }}</span>
+        </div>
+        <div class="kanban-cards-wrapper">
+            {% for task in done_tasks %}
+            <div class="kanban-card" style="opacity: 0.85; border-left: 3px solid #10b981;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                    <span class="badge badge-done">Completed</span>
+                </div>
+                <div class="kanban-card-title" style="text-decoration: line-through; color: var(--text-secondary);">
+                    <a href="{% url 'task_detail' task.pk %}" style="color: var(--text-secondary);">{{ task.title }}</a>
+                </div>
+                {% if task.project %}
+                <div class="kanban-card-project" style="color: var(--text-muted);">📁 {{ task.project.title }}</div>
+                {% endif %}
+
+                <div class="kanban-card-footer">
+                    <div class="kanban-card-meta">
+                        <span>✅ Finished</span>
+                    </div>
+                    {% if task.assigned_to %}
+                    <div class="avatar" style="width: 26px; height: 26px; font-size: 0.7rem; background-color: {{ task.assigned_to.profile.avatar_color|default:'#6366f1' }};">
+                        {{ task.assigned_to.profile.initials }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align: center; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.85rem;">No tasks</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- TABLE LIST VIEW -->
+<div class="modern-table-container">
+    <table class="modern-table">
+        <thead>
+            <tr>
+                <th>Task Title</th>
+                <th>Project</th>
+                <th>Assigned To</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Due Date</th>
+                <th style="text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td>
+                    <a href="{% url 'task_detail' task.pk %}" style="font-weight: 700; color: var(--text-main);">
+                        {{ task.title }}
+                    </a>
+                    {% if task.category %}
+                    <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: 6px;">#{{ task.category }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if task.project %}
+                    <a href="{% url 'project_detail' task.project.slug %}" style="color: #818cf8; font-size: 0.85rem;">
+                        📁 {{ task.project.title }}
+                    </a>
+                    {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">General</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if task.assigned_to %}
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="avatar" style="width: 26px; height: 26px; font-size: 0.7rem; background-color: {{ task.assigned_to.profile.avatar_color|default:'#6366f1' }};">
+                            {{ task.assigned_to.profile.initials }}
+                        </div>
+                        <span style="font-size: 0.85rem;">{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</span>
+                    </div>
+                    {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">Unassigned</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge badge-priority-{{ task.priority|lower }}">{{ task.get_priority_display }}</span>
+                </td>
+                <td>
+                    <span class="badge badge-{{ task.status|lower }}">{{ task.get_status_display }}</span>
+                </td>
+                <td>
+                    <span style="font-size: 0.82rem; color: {% if task.is_overdue %}#fb7185{% else %}var(--text-muted){% endif %};">
+                        {{ task.due_date|date:"M d, Y"|default:"-" }}
+                    </span>
+                </td>
+                <td style="text-align: right;">
+                    <a href="{% url 'task_detail' task.pk %}" class="btn btn-secondary btn-sm" style="font-size: 0.75rem;">
+                        View
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                    No tasks found matching your filter criteria.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

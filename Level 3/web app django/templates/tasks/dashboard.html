@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard | TaskFlow Command Center{% endblock %}
+{% block header_title %}Command Center Overview{% endblock %}
+
+{% block content %}
+<!-- Welcome Banner -->
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.16) 0%, rgba(139, 92, 246, 0.1) 100%); border-color: rgba(99, 102, 241, 0.28);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 4px;">
+                Good day, {{ user.first_name|default:user.username }}! 👋
+            </h1>
+            <p style="color: var(--text-secondary); font-size: 0.92rem;">
+                Here is what is moving across your initiatives today. You are operating with 
+                <span class="badge {{ user.role_badge_class }}">{{ user.get_role_display }}</span> privileges.
+            </p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <a href="{% url 'tasks:task_create' %}" class="btn btn-primary">
+                <span>⚡ + Create Task</span>
+            </a>
+            {% if is_manager or user.is_manager_role %}
+            <a href="{% url 'tasks:project_create' %}" class="btn btn-secondary">
+                <span>📁 + New Project</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Performance Metrics Grid -->
+<div class="stats-grid" style="margin-bottom: 2rem;">
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-purple">📋</div>
+        <div>
+            <div class="stat-value">{{ total_count }}</div>
+            <div class="stat-label">Total Accessible Tasks</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-cyan">⏳</div>
+        <div>
+            <div class="stat-value">{{ in_progress_count }}</div>
+            <div class="stat-label">Active / In Progress</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-emerald">✅</div>
+        <div>
+            <div class="stat-value">{{ completed_count }}</div>
+            <div class="stat-label">Completed Milestones</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-rose">🚨</div>
+        <div>
+            <div class="stat-value" style="color: {% if overdue_count > 0 %}#f43f5e{% else %}var(--text-muted){% endif %};">
+                {{ overdue_count }}
+            </div>
+            <div class="stat-label">Overdue Deadlines</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Toolbar & View Toggle -->
+<div class="card" style="margin-bottom: 1.75rem; padding: 1rem 1.25rem;">
+    <form method="get" action="{% url 'tasks:dashboard' %}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <input type="hidden" name="view" value="{{ view_mode }}">
+
+        <!-- Search Input -->
+        <div style="flex: 2; min-width: 200px;">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="Filter by task title or description..." class="form-input" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;">
+        </div>
+
+        <!-- Project Filter -->
+        <div style="flex: 1; min-width: 150px;">
+            <select name="project" class="form-select" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;" onchange="this.form.submit()">
+                <option value="">All Projects</option>
+                {% for p in projects_list %}
+                <option value="{{ p.slug }}" {% if project_slug == p.slug %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Priority Filter -->
+        <div style="flex: 1; min-width: 140px;">
+            <select name="priority" class="form-select" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;" onchange="this.form.submit()">
+                <option value="">All Priorities</option>
+                {% for p_val, p_label in priorities %}
+                <option value="{{ p_val }}" {% if priority_filter == p_val %}selected{% endif %}>{{ p_label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Status Filter (Mainly for List View) -->
+        {% if view_mode == 'list' %}
+        <div style="flex: 1; min-width: 140px;">
+            <select name="status" class="form-select" style="padding: 0.55rem 0.85rem; font-size: 0.88rem;" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                {% for s_val, s_label in statuses %}
+                <option value="{{ s_val }}" {% if status_filter == s_val %}selected{% endif %}>{{ s_label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.6rem 1rem;">
+                🔍 Apply
+            </button>
+            {% if search_query or project_slug or priority_filter or status_filter %}
+            <a href="{% url 'tasks:dashboard' %}?view={{ view_mode }}" class="btn btn-secondary btn-sm" style="color: var(--text-muted);">
+                Reset
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- View Switcher (Kanban vs List) -->
+        <div style="margin-left: auto; display: flex; background: rgba(255, 255, 255, 0.05); padding: 3px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+            <a href="?view=kanban{% if search_query %}&q={{ search_query }}{% endif %}{% if project_slug %}&project={{ project_slug }}{% endif %}{% if priority_filter %}&priority={{ priority_filter }}{% endif %}" class="btn btn-sm {% if view_mode == 'kanban' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding: 4px 12px; font-size: 0.8rem; border: none;">
+                ▦ Kanban
+            </a>
+            <a href="?view=list{% if search_query %}&q={{ search_query }}{% endif %}{% if project_slug %}&project={{ project_slug }}{% endif %}{% if priority_filter %}&priority={{ priority_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="btn btn-sm {% if view_mode == 'list' %}btn-primary{% else %}btn-secondary{% endif %}" style="padding: 4px 12px; font-size: 0.8rem; border: none;">
+                ☰ List
+            </a>
+        </div>
+    </form>
+</div>
+
+{% if view_mode == 'kanban' %}
+<!-- ================= KANBAN BOARD VIEW ================= -->
+<div class="kanban-board">
+    <!-- Column: To Do -->
+    <div class="kanban-column" style="border-top: 3px solid #64748b;">
+        <div class="kanban-column-header">
+            <div class="kanban-column-title">
+                <span>○</span> To Do
+            </div>
+            <span class="kanban-count-pill">{{ kanban_columns.TODO.count }}</span>
+        </div>
+        <div class="kanban-cards-wrapper">
+            {% for task in kanban_columns.TODO %}
+                {% include 'tasks/includes/kanban_card.html' with task=task %}
+            {% empty %}
+                <div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.85rem;">
+                    No pending tasks in To Do
+                </div>
+            {% endfor %}
+            <a href="{% url 'tasks:task_create' %}" class="btn btn-secondary btn-sm" style="width: 100%; border-style: dashed; padding: 6px; font-size: 0.8rem; margin-top: auto;">
+                + Add Task
+            </a>
+        </div>
+    </div>
+
+    <!-- Column: In Progress -->
+    <div class="kanban-column" style="border-top: 3px solid #06b6d4;">
+        <div class="kanban-column-header">
+            <div class="kanban-column-title">
+                <span>◑</span> In Progress
+            </div>
+            <span class="kanban-count-pill">{{ kanban_columns.IN_PROGRESS.count }}</span>
+        </div>
+        <div class="kanban-cards-wrapper">
+            {% for task in kanban_columns.IN_PROGRESS %}
+                {% include 'tasks/includes/kanban_card.html' with task=task %}
+            {% empty %}
+                <div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.85rem;">
+                    No tasks currently in progress
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Column: In Review -->
+    <div class="kanban-column" style="border-top: 3px solid #f59e0b;">
+        <div class="kanban-column-header">
+            <div class="kanban-column-title">
+                <span>◕</span> In Review
+            </div>
+            <span class="kanban-count-pill">{{ kanban_columns.IN_REVIEW.count }}</span>
+        </div>
+        <div class="kanban-cards-wrapper">
+            {% for task in kanban_columns.IN_REVIEW %}
+                {% include 'tasks/includes/kanban_card.html' with task=task %}
+            {% empty %}
+                <div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.85rem;">
+                    No tasks under review
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Column: Done -->
+    <div class="kanban-column" style="border-top: 3px solid #10b981;">
+        <div class="kanban-column-header">
+            <div class="kanban-column-title">
+                <span>●</span> Done
+            </div>
+            <span class="kanban-count-pill">{{ kanban_columns.DONE.count }}</span>
+        </div>
+        <div class="kanban-cards-wrapper">
+            {% for task in kanban_columns.DONE %}
+                {% include 'tasks/includes/kanban_card.html' with task=task %}
+            {% empty %}
+                <div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.85rem;">
+                    No tasks completed yet
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- ================= LIST VIEW ================= -->
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div style="overflow-x: auto;">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Task Title</th>
+                    <th>Initiative</th>
+                    <th>Assignee</th>
+                    <th>Priority</th>
+                    <th>Due Date</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>
+                        <span class="badge {{ task.status_badge_class }}">
+                            {{ task.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'tasks:task_detail' task.pk %}" style="font-weight: 700; color: var(--text-main);">
+                            {{ task.title }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if task.project %}
+                        <a href="{% url 'tasks:project_detail' task.project.slug %}" style="color: #818cf8; font-size: 0.85rem; font-weight: 600;">
+                            📁 {{ task.project.name }}
+                        </a>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if task.assigned_to %}
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="avatar" style="width: 26px; height: 26px; font-size: 0.7rem; background-color: var(--accent-{{ task.assigned_to.avatar_color|default:'indigo' }}, #6366f1);">
+                                {{ task.assigned_to.initials }}
+                            </div>
+                            <span style="font-size: 0.88rem;">{{ task.assigned_to.first_name|default:task.assigned_to.username }}</span>
+                        </div>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">None</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {{ task.priority_badge_class }}">
+                            {{ task.get_priority_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if task.due_date %}
+                        <span style="font-size: 0.85rem; {% if task.due_date < today and task.status != 'DONE' %}color: #f43f5e; font-weight: 700;{% else %}color: var(--text-secondary);{% endif %}">
+                            {{ task.due_date|date:"M d, Y" }}
+                            {% if task.due_date < today and task.status != 'DONE' %}⚠️{% endif %}
+                        </span>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">No date</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 6px;">
+                            <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn-secondary btn-sm" title="View Details">
+                                👁️
+                            </a>
+                            <a href="{% url 'tasks:task_update' task.pk %}" class="btn btn-secondary btn-sm" title="Edit Task">
+                                ✏️
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        No tasks match the selected criteria. Try adjusting filters or create a new task.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Activities Feed Strip -->
+<div class="card" style="margin-top: 2.5rem;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title" style="font-size: 1.05rem;">
+            <span>📜</span> Recent Workspace Activity
+        </h3>
+        <a href="{% url 'tasks:activity_log' %}" style="font-size: 0.82rem; color: #818cf8; font-weight: 600;">
+            View Full Audit Trail &rarr;
+        </a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-top: 0.5rem;">
+        {% for act in recent_activities %}
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0.85rem; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm); font-size: 0.88rem; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="avatar" style="width: 28px; height: 28px; font-size: 0.72rem; background-color: var(--accent-{{ act.user.avatar_color|default:'indigo' }}, #6366f1);">
+                    {{ act.user.initials }}
+                </div>
+                <div>
+                    <strong style="color: var(--text-main);">{{ act.user.first_name|default:act.user.username }}</strong>
+                    <span style="color: var(--text-secondary);">{{ act.action }}</span>
+                </div>
+            </div>
+            <div style="color: var(--text-muted); font-size: 0.78rem; font-family: var(--font-mono);">
+                {{ act.timestamp|timesince }} ago
+            </div>
+        </div>
+        {% empty %}
+        <div style="color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 1.5rem;">
+            No recent activity recorded yet.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

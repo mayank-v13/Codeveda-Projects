@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Team Directory & Roles | TaskFlow{% endblock %}
+{% block header_title %}Team Directory & Role Permissions{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.6rem; font-weight: 800;">Team Directory & Access Control</h1>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+            Inspect user accounts, assigned authorization roles, and permissions across the platform.
+        </p>
+    </div>
+
+    <!-- Role Filter Pills -->
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <a href="{% url 'team' %}" class="btn btn-sm {% if not active_role_filter %}btn-primary{% else %}btn-secondary{% endif %}">
+            All ({{ team_users.count }})
+        </a>
+        {% for role_code, role_name in roles %}
+        <a href="{% url 'team' %}?role={{ role_code }}" class="btn btn-sm {% if active_role_filter == role_code %}btn-primary{% else %}btn-secondary{% endif %}">
+            {{ role_name }}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Search Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem;">
+    <form method="get" action="{% url 'team' %}" style="display: flex; gap: 10px; align-items: center;">
+        {% if active_role_filter %}
+        <input type="hidden" name="role" value="{{ active_role_filter }}">
+        {% endif %}
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search team members by name, username, email, or title..." class="form-control" style="flex: 1;">
+        <button type="submit" class="btn btn-secondary btn-sm">
+            🔍 Search
+        </button>
+        {% if search_query or active_role_filter %}
+        <a href="{% url 'team' %}" class="btn btn-secondary btn-sm" style="color: var(--text-muted);">
+            Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Team Table -->
+<div class="modern-table-container">
+    <table class="modern-table">
+        <thead>
+            <tr>
+                <th>Member</th>
+                <th>Contact</th>
+                <th>Role & Permissions</th>
+                <th>Title / Department</th>
+                <th>Date Joined</th>
+                {% if is_admin %}
+                <th style="text-align: right;">Admin Action</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in team_users %}
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="avatar" style="width: 38px; height: 38px; font-size: 0.85rem; background-color: {{ member.profile.avatar_color|default:'#6366f1' }};">
+                            {{ member.profile.initials }}
+                        </div>
+                        <div>
+                            <div style="font-weight: 700; color: var(--text-main);">
+                                {{ member.profile.display_name }}
+                                {% if member == user %}
+                                <span style="font-size: 0.7rem; color: #818cf8; font-weight: 600;">(You)</span>
+                                {% endif %}
+                            </div>
+                            <div style="font-size: 0.78rem; color: var(--text-muted);">@{{ member.username }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span style="font-size: 0.85rem; color: var(--text-secondary);">{{ member.email|default:"No email set" }}</span>
+                </td>
+                <td>
+                    <span class="badge {{ member.profile.role_badge_class }}">
+                        {{ member.profile.get_role_display }}
+                    </span>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">
+                        {% if member.profile.is_admin %}
+                        ⚡ Full System & Team Control
+                        {% elif member.profile.is_manager %}
+                        📁 Project & Task Assignment
+                        {% else %}
+                        💻 Assigned Tasks & Updates
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <div style="font-weight: 500; font-size: 0.85rem; color: var(--text-main);">{{ member.profile.job_title|default:"-" }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ member.profile.department|default:"-" }}</div>
+                </td>
+                <td>
+                    <span style="font-size: 0.82rem; color: var(--text-muted);">{{ member.date_joined|date:"M d, Y" }}</span>
+                </td>
+                {% if is_admin %}
+                <td style="text-align: right;">
+                    {% if member != user %}
+                    <form method="post" action="{% url 'update_user_role' member.id %}" style="display: inline-flex; align-items: center; gap: 6px;">
+                        {% csrf_token %}
+                        <select name="role" class="form-select form-select-sm" style="padding: 0.3rem 1.8rem 0.3rem 0.6rem; font-size: 0.78rem; width: auto;">
+                            {% for role_code, role_name in roles %}
+                            <option value="{{ role_code }}" {% if member.profile.role == role_code %}selected{% endif %}>
+                                {{ role_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-secondary btn-sm" style="font-size: 0.75rem;">
+                            Update
+                        </button>
+                    </form>
+                    {% else %}
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Current User</span>
+                    {% endif %}
+                </td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                    No team members matched the selected criteria.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if not is_admin %}
+<div style="margin-top: 1.5rem; padding: 1rem 1.25rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); font-size: 0.82rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;">
+    <span>🔒</span>
+    <span>Role modifications and access provisioning require Administrator privileges. Sign in as <code>admin</code> to manage user permissions.</span>
+</div>
+{% endif %}
+{% endblock %}

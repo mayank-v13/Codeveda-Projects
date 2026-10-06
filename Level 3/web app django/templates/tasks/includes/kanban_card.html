@@ -1,0 +1,87 @@
+<div class="kanban-card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
+        <span class="badge {{ task.priority_badge_class }}" style="font-size: 0.65rem;">
+            {{ task.get_priority_display }}
+        </span>
+        {% if task.comments.count > 0 %}
+        <span style="font-size: 0.72rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 3px;">
+            💬 {{ task.comments.count }}
+        </span>
+        {% endif %}
+    </div>
+
+    {% if task.project %}
+    <div class="kanban-card-project">
+        📁 <a href="{% url 'tasks:project_detail' task.project.slug %}" style="color: #818cf8; text-decoration: none;">
+            {{ task.project.name }}
+        </a>
+    </div>
+    {% endif %}
+
+    <a href="{% url 'tasks:task_detail' task.pk %}" style="text-decoration: none; color: inherit;">
+        <div class="kanban-card-title">{{ task.title }}</div>
+    </a>
+
+    {% if task.description %}
+    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+        {{ task.description }}
+    </div>
+    {% endif %}
+
+    <div class="kanban-card-footer">
+        <div class="kanban-card-meta">
+            {% if task.assigned_to %}
+            <div class="avatar" style="width: 24px; height: 24px; font-size: 0.65rem; background-color: var(--accent-{{ task.assigned_to.avatar_color|default:'indigo' }}, #6366f1);" title="Assigned to {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}">
+                {{ task.assigned_to.initials }}
+            </div>
+            <span style="font-size: 0.75rem; color: var(--text-secondary);">
+                {{ task.assigned_to.first_name|default:task.assigned_to.username }}
+            </span>
+            {% else %}
+            <span style="font-size: 0.72rem; color: var(--text-muted);">Unassigned</span>
+            {% endif %}
+        </div>
+
+        {% if task.due_date %}
+        <div style="font-size: 0.72rem; {% if task.due_date < today and task.status != 'DONE' %}color: #f43f5e; font-weight: 700;{% else %}color: var(--text-muted);{% endif %}">
+            📅 {{ task.due_date|date:"M d" }}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Status Transition Toolbar -->
+    <div class="quick-status-buttons" style="display: flex; gap: 4px; margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px dashed var(--border-subtle); flex-wrap: wrap;">
+        <span style="font-size: 0.65rem; color: var(--text-muted); align-self: center; margin-right: 2px;">Move:</span>
+        {% if task.status != 'TODO' %}
+        <form method="post" action="{% url 'tasks:task_status' task.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="TODO">
+            <button type="submit" class="quick-status-btn" title="Move to To Do">○ To Do</button>
+        </form>
+        {% endif %}
+
+        {% if task.status != 'IN_PROGRESS' %}
+        <form method="post" action="{% url 'tasks:task_status' task.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="IN_PROGRESS">
+            <button type="submit" class="quick-status-btn" title="Move to In Progress">◑ In Progress</button>
+        </form>
+        {% endif %}
+
+        {% if task.status != 'IN_REVIEW' %}
+        <form method="post" action="{% url 'tasks:task_status' task.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="IN_REVIEW">
+            <button type="submit" class="quick-status-btn" title="Move to In Review">◕ Review</button>
+        </form>
+        {% endif %}
+
+        {% if task.status != 'DONE' %}
+        <form method="post" action="{% url 'tasks:task_status' task.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="DONE">
+            <button type="submit" class="quick-status-btn" style="color: #34d399;" title="Mark as Done">● Done</button>
+        </form>
+        {% endif %}
+    </div>
+</div>

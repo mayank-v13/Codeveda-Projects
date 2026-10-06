@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Developer Email Outbox | TaskFlow{% endblock %}
+{% block header_title %}📬 Simulated Mailbox (Development Outbox){% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.6rem; font-weight: 800;">Simulated Email Outbox</h1>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+            Emails sent by the application (including Password Reset verification links) are automatically intercepted and displayed here for rapid evaluation without real SMTP setup.
+        </p>
+    </div>
+    {% if emails %}
+    <form method="post" action="{% url 'clear_email_outbox' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Clear outbox history?')">
+            🗑️ Clear Outbox
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+{% if emails %}
+<div style="display: flex; flex-direction: column; gap: 1.25rem;">
+    {% for email in emails %}
+    <div class="card" style="border-left: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+            <div>
+                <span class="badge badge-manager" style="margin-bottom: 6px;">Captured Email #{{ email.id }}</span>
+                <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main);">{{ email.subject }}</h3>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">
+                ⏱️ {{ email.timestamp }}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; background: rgba(0, 0, 0, 0.25); padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.85rem;">
+            <div><strong style="color: var(--text-secondary);">From:</strong> {{ email.from_email }}</div>
+            <div><strong style="color: var(--text-secondary);">To:</strong> {{ email.to|join:", " }}</div>
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.95); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1.25rem; font-family: var(--font-mono); font-size: 0.88rem; color: #cbd5e1; white-space: pre-wrap; line-height: 1.6; word-break: break-all;">
+{{ email.body }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align: center; padding: 3.5rem 2rem;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+    <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">Outbox is Empty</h3>
+    <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto 1.5rem auto;">
+        No emails have been dispatched yet. When you request a password reset via the "Forgot Password" page, the reset email with its one-time secure link will appear here instantly!
+    </p>
+    <a href="{% url 'password_reset' %}" class="btn btn-primary btn-sm">
+        🔑 Test Forgot Password Flow
+    </a>
+</div>
+{% endif %}
+{% endblock %}

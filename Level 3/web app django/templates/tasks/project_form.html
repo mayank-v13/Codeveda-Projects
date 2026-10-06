@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | TaskFlow{% endblock %}
+{% block header_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <a href="{% url 'tasks:project_list' %}" style="font-size: 0.88rem; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+        &larr; Back to Projects Directory
+    </a>
+</div>
+
+<div class="auth-wrapper" style="min-height: auto; padding: 1rem 0;">
+    <div class="auth-card auth-card-wide" style="width: 100%; max-width: 680px;">
+        <div style="margin-bottom: 1.75rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem;">
+            <h1 style="font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em;">{{ title }}</h1>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">
+                Define high-level initiative parameters, sprint status, and team assignments.
+            </p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label class="form-label" for="id_name">Project Title *</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div class="errorlist">{{ form.name.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="id_description">Project Scope & Objectives</label>
+                {{ form.description }}
+                {% if form.description.errors %}<div class="errorlist">{{ form.description.errors }}</div>{% endif %}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="id_status">Sprint Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}<div class="errorlist">{{ form.status.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="id_color">Theme Color Accent</label>
+                    {{ form.color }}
+                    {% if form.color.errors %}<div class="errorlist">{{ form.color.errors }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="id_members">Assign Initiative Members</label>
+                {{ form.members }}
+                <span class="form-text" style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 4px;">
+                    Hold down Ctrl (Windows) or Command (Mac) to select multiple team members.
+                </span>
+                {% if form.members.errors %}<div class="errorlist">{{ form.members.errors }}</div>{% endif %}
+            </div>
+
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--border-subtle);">
+                <a href="{% url 'tasks:project_list' %}" class="btn btn-secondary">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.75rem;">
+                    Save Project
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
